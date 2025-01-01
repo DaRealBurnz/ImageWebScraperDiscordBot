@@ -1,0 +1,15 @@
+# Config file for Big Watermelon Web Scraper Discord Bot
+
+---
+# Images to ignore
+# The bot will not make a post with these images
+ignoreList:
+  - https://www.bigwatermelon.com.au/wp-content/uploads/2021/12/check-back-later-for-promoted-specials.png 
+  - https://www.bigwatermelon.com.au/wp-content/uploads/2022/05/Retail-Trading-Hours-1.jpg
+  - https://www.bigwatermelon.com.au/wp-content/uploads/2023/04/Trading-Hours.png
+
+# URL to scrape
+url: https://www.bigwatermelon.com.au/dailyspecials/
+
+# CSS selector to get images from
+selector: img[class^="wp-image"]
