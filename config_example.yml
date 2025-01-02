@@ -1,0 +1,13 @@
+# Config file for Web Scraper Discord Bot
+
+---
+# Images to ignore
+# The bot will not make a post with these images
+ignoreList:
+  - 
+
+# URL to scrape from
+url: 
+
+# CSS selector to get images from
+selector: 
