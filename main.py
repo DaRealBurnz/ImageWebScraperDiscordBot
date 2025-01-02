@@ -22,8 +22,12 @@ load_dotenv()
 async def checkImgUpdate(guild: discord.Guild):
   print(f'checking img update for guild {guild.id}')
   imgs = soup.select(config['selector'])
-  with open('guild_info.json', 'r') as f:
-    guildInfo = json.load(f)
+  # Load data from guild_info file. If it doesn't exist or the json does not decode, consider it empty
+  try:
+    with open('guild_info.json', 'r') as f:
+      guildInfo = json.load(f)
+  except:
+    guildInfo = {}
   if str(guild.id) in guildInfo.keys():
     g = guildInfo[str(guild.id)]
     imgLink = ""
