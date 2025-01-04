@@ -2,7 +2,7 @@
 # https://discordpy.readthedocs.io/en/stable/quickstart.html#a-minimal-bot
 
 import discord
-from discord.ext import tasks
+from discord.ext import tasks, commands
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -10,7 +10,7 @@ import yaml
 import json
 from dotenv import load_dotenv
 
-client = discord.Client(intents=discord.Intents.default())
+client = commands.Bot(command_prefix="!", intents=discord.Intents.default())
 html = requests.get('https://www.bigwatermelon.com.au/dailyspecials/')
 soup = BeautifulSoup(html.text, 'html.parser')
 with open('config.yml', 'r') as f:
@@ -18,16 +18,24 @@ with open('config.yml', 'r') as f:
 ignoreLst = config['ignoreList']
 load_dotenv()
 
+# Load data from guild_info file. If it doesn't exist consider it empty
+def loadGuildInfo() -> dict:
+  try:
+    with open('guild_info.json', 'r') as f:
+      return json.load(f)
+  except FileNotFoundError:
+    return {}
+
+# Save data to guild_info file. Will create if it does not exist
+def saveGuildInfo(guildInfo: dict):
+  with open('guild_info.json', 'w') as f:
+    json.dump(guildInfo, f)
+
 @tasks.loop(hours=1)
 async def checkImgUpdate(guild: discord.Guild):
   print(f'checking img update for guild {guild.id}')
   imgs = soup.select(config['selector'])
-  # Load data from guild_info file. If it doesn't exist or the json does not decode, consider it empty
-  try:
-    with open('guild_info.json', 'r') as f:
-      guildInfo = json.load(f)
-  except:
-    guildInfo = {}
+  guildInfo = loadGuildInfo()
   if str(guild.id) in guildInfo.keys():
     g = guildInfo[str(guild.id)]
     imgLink = ""
@@ -38,15 +46,25 @@ async def checkImgUpdate(guild: discord.Guild):
       chnl = guild.get_channel(g['channel'])
       await chnl.send(imgLink)
       g['last_img'] = imgLink
-      with open('guild_info.json', 'w') as f:
-        json.dump(guildInfo, f)
+      saveGuildInfo(guildInfo)
   else:
      print(f"cannot find guild info for guild {guild.id}")
+
+@client.tree.command(name="setchannel", description="Set this channel to receive updates from the bot")
+async def setChannel(interaction: discord.Interaction):
+  guildInfo = loadGuildInfo()
+  if str(interaction.guild_id) not in guildInfo.keys():
+    guildInfo[str(interaction.guild_id)] = {}
+    guildInfo[str(interaction.guild_id)]['last_img'] = ""
+  guildInfo[str(interaction.guild_id)]['channel'] = interaction.channel_id
+  saveGuildInfo(guildInfo)
+  await interaction.response.send_message("This channel has been set to publish updates", silent=True)
 
 @client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
-    checkImgUpdate.start(client.get_guild(487606526098538497))
+    await client.tree.sync()
+    # checkImgUpdate.start(client.get_guild(487606526098538497))
 
 @client.event
 async def on_message(message):
