@@ -60,7 +60,7 @@ runningTasks = []
 def startTask(guild: discord.Guild):
     # If task is already running, don't do anything
     for task in runningTasks:
-        if task.getTask().get_name() == str(guild.id):
+        if task.get_task().get_name() == str(guild.id):
             return
         
     # Create new task and add it to the list
@@ -84,7 +84,19 @@ async def setChannel(interaction: discord.Interaction):
     startTask(interaction.guild)
 
 
-# @client.tree.command(name="checkupdate")
+@client.tree.command(name="checkupdate", description="Force check for an update. This will also reset the time until the next automatic check")
+async def forceCheck(interaction: discord.Interaction):
+    for task in runningTasks:
+        if task.get_task().get_name() == str(interaction.guild_id):
+            await interaction.response.send_message("Checking for an update. Nothing will be posted if the last post is up to date", ephemeral=True)
+            task.restart(interaction.guild)
+            return
+    guildInfo = loadGuildInfo()
+    if str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]:
+        await interaction.response.send_message("Checking for an update. Nothing will be posted if the last post is up to date", ephemeral=True)
+        checkImgUpdate(interaction.guild)
+    else:
+        await interaction.response.send_message("Please set a channel to post updates in first", ephemeral=True)
 
 
 @client.event
