@@ -35,7 +35,7 @@ def saveGuildInfo(guildInfo: dict):
 
 
 # @tasks.loop(hours=1)
-async def checkImgUpdate(guild: discord.Guild, force: bool = False):
+async def checkImgUpdate(guild: discord.Guild, force: bool = False) -> bool:
     print(f"checking img update for guild {guild.id}")
     imgs = soup.select(config["selector"])
     guildInfo = loadGuildInfo()
@@ -45,13 +45,15 @@ async def checkImgUpdate(guild: discord.Guild, force: bool = False):
         for img in imgs:
             if img["src"] not in ignoreLst:
                 imgLink = imgLink + img["src"] + "\n"
-        if force or (imgLink and imgLink != g["last_img"]):
+        if imgLink and (force or imgLink != g["last_img"]):
             chnl = guild.get_channel(g["channel"])
             await chnl.send(imgLink)
             g["last_img"] = imgLink
             saveGuildInfo(guildInfo)
+            return True 
     else:
         print(f"cannot find guild info for guild {guild.id}")
+    return False
 
 
 runningTasks = []
@@ -96,16 +98,19 @@ async def forceCheck(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
     if restartTask(interaction.guild) or (str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]):
         await interaction.response.send_message("Checking for an update. Nothing will be posted if the last post is up to date", ephemeral=True)
-        checkImgUpdate(interaction.guild)
+        await checkImgUpdate(interaction.guild)
     else:
         await interaction.response.send_message("Please set a channel to post updates in first", ephemeral=True)
 
 
-@client.tree.command(name="forceupdate", description="Force post the latest image, regardless of it was posted already")
+@client.tree.command(name="forceupdate", description="Force post the latest image, regardless if it was posted already")
 async def forcePost(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
     if str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]:
-        checkImgUpdate(interaction.guild, True)
+        if await checkImgUpdate(interaction.guild, True):
+            await interaction.response.send_message("Posting the latest image...", ephemeral=True)
+        else:
+            await interaction.response.send_message("Unable to find an image, or the latest image is in the ignore list", ephemeral=True)
         restartTask(interaction.guild)
     else:
         await interaction.response.send_message("Please set a channel to post updates in first", ephemeral=True)
