@@ -50,7 +50,7 @@ async def checkImgUpdate(guild: discord.Guild, force: bool = False) -> bool:
             await chnl.send(imgLink)
             g["last_img"] = imgLink
             saveGuildInfo(guildInfo)
-            return True 
+            return True
     else:
         print(f"cannot find guild info for guild {guild.id}")
     return False
@@ -64,11 +64,12 @@ def startTask(guild: discord.Guild):
     for task in runningTasks:
         if task.get_task().get_name() == str(guild.id):
             return
-        
+
     # Create new task and add it to the list
-    t = tasks.loop(name=str(guild.id),hours=1)(checkImgUpdate)
+    t = tasks.loop(name=str(guild.id), hours=1)(checkImgUpdate)
     runningTasks.append(t)
     t.start(guild)
+
 
 def restartTask(guild: discord.Guild) -> bool:
     for task in runningTasks:
@@ -93,27 +94,51 @@ async def setChannel(interaction: discord.Interaction):
     startTask(interaction.guild)
 
 
-@client.tree.command(name="checkupdate", description="Force check for an update. This will also reset the time until the next automatic check")
+@client.tree.command(
+    name="checkupdate",
+    description="Force check for an update. This will also reset the time until the next automatic check",
+)
 async def forceCheck(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
-    if restartTask(interaction.guild) or (str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]):
-        await interaction.response.send_message("Checking for an update. Nothing will be posted if the last post is up to date", ephemeral=True)
+    if restartTask(interaction.guild) or (
+        str(interaction.guild_id) in guildInfo.keys()
+        and guildInfo[str(interaction.guild_id)]["channel"]
+    ):
+        await interaction.response.send_message(
+            "Checking for an update. Nothing will be posted if the last post is up to date",
+            ephemeral=True,
+        )
         await checkImgUpdate(interaction.guild)
     else:
-        await interaction.response.send_message("Please set a channel to post updates in first", ephemeral=True)
+        await interaction.response.send_message(
+            "Please set a channel to post updates in first", ephemeral=True
+        )
 
 
-@client.tree.command(name="forceupdate", description="Force post the latest image, regardless if it was posted already")
+@client.tree.command(
+    name="forceupdate",
+    description="Force post the latest image, regardless if it was posted already",
+)
 async def forcePost(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
-    if str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]:
+    if (
+        str(interaction.guild_id) in guildInfo.keys()
+        and guildInfo[str(interaction.guild_id)]["channel"]
+    ):
         if await checkImgUpdate(interaction.guild, True):
-            await interaction.response.send_message("Posting the latest image...", ephemeral=True)
+            await interaction.response.send_message(
+                "Posting the latest image...", ephemeral=True
+            )
         else:
-            await interaction.response.send_message("Unable to find an image, or the latest image is in the ignore list", ephemeral=True)
+            await interaction.response.send_message(
+                "Unable to find an image, or the latest image is in the ignore list",
+                ephemeral=True,
+            )
         restartTask(interaction.guild)
     else:
-        await interaction.response.send_message("Please set a channel to post updates in first", ephemeral=True)
+        await interaction.response.send_message(
+            "Please set a channel to post updates in first", ephemeral=True
+        )
 
 
 @client.event
@@ -124,11 +149,15 @@ async def on_ready():
     for guild in guildInfo:
         startTask(client.get_guild(int(guild)))
 
+
 @client.event
 async def on_guild_join(guild: discord.Guild):
     c = guild.system_channel
     embed = discord.Embed()
-    embed.add_field(name="Thanks for adding the Big Watermelon bot to your server", value="To start using the bot, please use /setchannel to set a channel to post updates")
+    embed.add_field(
+        name="Thanks for adding the Big Watermelon bot to your server",
+        value="To start using the bot, please use /setchannel to set a channel to post updates",
+    )
     await c.send(embed=embed)
 
 
