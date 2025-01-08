@@ -126,7 +126,6 @@ async def on_ready():
 
 @client.event
 async def on_guild_join(guild: discord.Guild):
-    print("this ran")
     c = guild.system_channel
     embed = discord.Embed()
     embed.add_field(name="Thanks for adding the Big Watermelon bot to your server", value="To start using the bot, please use /setchannel to set a channel to post updates")
