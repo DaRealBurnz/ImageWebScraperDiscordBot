@@ -18,10 +18,6 @@ This bot has three slash commands that can be used on Discord:
 - /forceupdate - Force the bot to post the latest image(s), regardless of if it has already been posted. This will reset the hour timer.
 
 
-## To-do
-- Functionality for each guild to customise how often the bot checks for new images
-
-
 ## FAQ
 
 If you get the following error message while trying to start the server: `429 Too Many Requests` (accompanied by a lot of HTML code), try the advice given in this Stackoverflow question: https://stackoverflow.com/questions/66724687/in-discord-py-how-to-solve-the-error-for-toomanyrequests
