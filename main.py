@@ -96,7 +96,7 @@ async def setChannel(interaction: discord.Interaction):
 
 @client.tree.command(
     name="checkupdate",
-    description="Force check for an update. This will also reset the time until the next automatic check",
+    description="Force check for new images. This will also reset the time until the next automatic check",
 )
 async def forceCheck(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
@@ -117,7 +117,7 @@ async def forceCheck(interaction: discord.Interaction):
 
 @client.tree.command(
     name="forceupdate",
-    description="Force post the latest image, regardless if it was posted already",
+    description="Force post the latest image, regardless of if it was posted already",
 )
 async def forcePost(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
