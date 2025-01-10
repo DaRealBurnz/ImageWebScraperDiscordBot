@@ -2,13 +2,13 @@
 # https://discordpy.readthedocs.io/en/stable/quickstart.html#a-minimal-bot
 
 import discord
-from discord.ext import tasks, commands
 import os
 import requests
-from bs4 import BeautifulSoup
 import yaml
 import json
+from discord.ext import tasks, commands
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup
 
 client = commands.Bot(command_prefix="!", intents=discord.Intents.default())
 with open("config.yml", "r") as f:
