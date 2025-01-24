@@ -165,6 +165,13 @@ async def on_guild_join(guild: discord.Guild):
     await c.send(embed=embed)
 
 
+@client.event
+async def on_guild_remove(guild: discord.Guild):
+    guildInfo = loadGuildInfo()
+    guildInfo.pop(str(guild.id), None)
+    saveGuildInfo(guildInfo)
+
+
 try:
     client.run(os.getenv("BOT_TOKEN"))
 except discord.HTTPException as e:
