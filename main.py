@@ -43,25 +43,33 @@ async def postImage(imgLink: str, guild: discord.Guild):
     saveGuildInfo(guildInfo)
 
 
-# Check for an image update, then post it to all guilds with a registered channel if there's a new image
-# Returns the links to the images as a string
-@tasks.loop(hours=1)
-async def checkImgUpdate() -> str:
+# Return the latest image
+def checkImgUpdate() -> str:
     print(f"Checking for an update at {config['url']} using CSS selector {config['selector']}")
     html = requests.get(config["url"])
     soup = BeautifulSoup(html.text, "html.parser")
     imgs = soup.select(config["selector"])
-    guildInfo = loadGuildInfo()
-    for guild in client.guilds:
-        if str(guild.id) in guildInfo.keys():
-            g = guildInfo[str(guild.id)]
-            imgLink = ""
-            for img in imgs:
-                if img["src"] not in ignoreLst:
-                    imgLink = imgLink + img["src"] + "\n"
-            if imgLink != "" and imgLink != g["last_img"]:
-                await postImage(imgLink, guild)
+    imgLink = ""
+    for img in imgs:
+        if img["src"] not in ignoreLst:
+            imgLink = imgLink + img["src"] + "\n"
     return imgLink
+
+
+# Post images in guilds that don't have the new image
+@tasks.loop(hours=1)
+async def updateGuilds() -> list:
+    guildInfo = loadGuildInfo()
+    updatedGuilds = []
+    imgLink = checkImgUpdate()
+    if imgLink != "":
+        for guild in client.guilds:
+            if str(guild.id) in guildInfo.keys():
+                g = guildInfo[str(guild.id)]
+                if imgLink != g["last_img"]:
+                    await postImage(imgLink, guild)
+                    updatedGuilds.append(str(guild.id))
+    return updatedGuilds
 
 
 # runningTasks = []
@@ -99,7 +107,7 @@ async def setChannel(interaction: discord.Interaction):
     await interaction.response.send_message(
         "The bot will post updates to this channel", silent=True
     )
-    checkImgUpdate.restart()
+    updateGuilds.restart()
     # startTask(interaction.guild)
 
 
@@ -110,12 +118,19 @@ async def setChannel(interaction: discord.Interaction):
 async def forceCheck(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
     if str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]:
-        await interaction.response.send_message(
-            "Checking for an update. Nothing will be posted if the last post is up to date",
-            ephemeral=True,
-        )
         # await checkImgUpdate(interaction.guild)
-        checkImgUpdate.restart()
+        updatedGuilds = await updateGuilds()
+        if str(interaction.guild_id) in updatedGuilds:
+            await interaction.response.send_message(
+                "New images were found and have been posted",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "No new images found",
+                ephemeral=True,
+            )
+        updateGuilds.restart()
     else:
         await interaction.response.send_message(
             "Please set a channel to post updates in first", ephemeral=True
@@ -132,8 +147,11 @@ async def forcePost(interaction: discord.Interaction):
         await interaction.response.send_message(
             "Posting the latest image...", ephemeral=True
         )
-        checkImgUpdate.restart()
-        await postImage(interaction.guild)
+        updatedGuilds = await updateGuilds()
+        if str(interaction.guild_id) not in updatedGuilds:
+            imgLink = checkImgUpdate()
+            await postImage(imgLink, interaction.guild)
+        updateGuilds.restart()
     else:
         await interaction.response.send_message(
             "Please set a channel to post updates in first", ephemeral=True
@@ -144,7 +162,7 @@ async def forcePost(interaction: discord.Interaction):
 async def on_ready():
     print("We have logged in as {0.user}".format(client))
     await client.tree.sync()
-    checkImgUpdate.start()
+    updateGuilds.start()
 
 
 @client.event
