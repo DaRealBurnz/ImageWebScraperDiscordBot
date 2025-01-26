@@ -168,18 +168,11 @@ async def on_ready():
 @client.event
 async def on_guild_join(guild: discord.Guild):
     c = guild.system_channel
-    embed = discord.Embed()
-    guildInfo = loadGuildInfo()
-    if str(guild.id) in guildInfo and guildInfo[str(guild.id)]["channel"]:
-        embed.add_field(
-            name="Thanks for adding the Big Watermelon bot to your server",
-            value=f"This bot has been previously setup on this server. Updates will be posted to <#{guildInfo[str(guild.id)]['channel']}>",
-        )
-    else:
-        embed.add_field(
-            name="Thanks for adding the Big Watermelon bot to your server",
-            value="To start using the bot, please use /setchannel to set a channel to post updates",
-        )
+    embed = discord.Embed(color=discord.Colour.blue)
+    embed.add_field(
+        name="Thanks for adding the Big Watermelon bot to your server",
+        value="To start using the bot, please use /setchannel to set a channel to post updates",
+    )
     await c.send(embed=embed)
 
 
