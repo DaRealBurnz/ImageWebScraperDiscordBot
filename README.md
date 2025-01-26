@@ -1,5 +1,5 @@
 # Web Scraper Discord Bot
-This is a Discord bot that scrapes images from a given website and CSS selector. The website is checked every hour (on a per guild basis) and if a new image is found it will post the link to the photo(s) to the designated channel.
+This is a Discord bot that scrapes images from a given website and CSS selector. The website is checked every hour and if a new image is found it will post a link to the photo(s) to the designated channel.
 
 ## Getting Started
 To get set up, you'll need to follow [these bot account setup instructions](https://discordpy.readthedocs.io/en/stable/discord.html), and then copy the token for your bot and add it to an .env file with the key `BOT_TOKEN` (see example.env)
