@@ -33,50 +33,66 @@ def saveGuildInfo(guildInfo: dict):
     with open("guild_info.json", "w") as f:
         json.dump(guildInfo, f)
 
-
-# @tasks.loop(hours=1)
-async def checkImgUpdate(guild: discord.Guild, force: bool = False) -> bool:
-    print(f"checking img update for guild {guild.id}")
-    imgs = soup.select(config["selector"])
+# Post image to given guild
+async def postImage(imgLink: str, guild: discord.Guild):
     guildInfo = loadGuildInfo()
-    if str(guild.id) in guildInfo.keys():
-        g = guildInfo[str(guild.id)]
-        imgLink = ""
-        for img in imgs:
-            if img["src"] not in ignoreLst:
-                imgLink = imgLink + img["src"] + "\n"
-        if imgLink and (force or imgLink != g["last_img"]):
-            chnl = guild.get_channel(g["channel"])
-            await chnl.send(imgLink)
-            g["last_img"] = imgLink
-            saveGuildInfo(guildInfo)
-            return True
-    else:
-        print(f"cannot find guild info for guild {guild.id}")
-    return False
+    g = guildInfo[str(guild.id)]
+    chnl = guild.get_channel(g["channel"])
+    await chnl.send(imgLink)
+    g["last_img"] = imgLink
+    saveGuildInfo(guildInfo)
 
 
-runningTasks = []
+# Return the latest image
+def checkImgUpdate() -> str:
+    print(f"Checking for an update at {config['url']} using CSS selector {config['selector']}")
+    html = requests.get(config["url"])
+    soup = BeautifulSoup(html.text, "html.parser")
+    imgs = soup.select(config["selector"])
+    imgLink = ""
+    for img in imgs:
+        if img["src"] not in ignoreLst:
+            imgLink = imgLink + img["src"] + "\n"
+    return imgLink
 
 
-def startTask(guild: discord.Guild):
-    # If task is already running, don't do anything
-    for task in runningTasks:
-        if task.get_task().get_name() == str(guild.id):
-            return
+# Post images in guilds that don't have the new image
+@tasks.loop(hours=1)
+async def updateGuilds() -> list:
+    guildInfo = loadGuildInfo()
+    updatedGuilds = []
+    imgLink = checkImgUpdate()
+    if imgLink != "":
+        for guild in client.guilds:
+            if str(guild.id) in guildInfo.keys():
+                g = guildInfo[str(guild.id)]
+                if imgLink != g["last_img"]:
+                    await postImage(imgLink, guild)
+                    updatedGuilds.append(str(guild.id))
+    return updatedGuilds
 
-    # Create new task and add it to the list
-    t = tasks.loop(name=str(guild.id), hours=1)(checkImgUpdate)
-    runningTasks.append(t)
-    t.start(guild)
+
+# runningTasks = []
 
 
-def restartTask(guild: discord.Guild) -> bool:
-    for task in runningTasks:
-        if task.get_task().get_name() == str(guild.id):
-            task.restart(guild)
-            return True
-    return False
+# def startTask(guild: discord.Guild):
+#     # If task is already running, don't do anything
+#     for task in runningTasks:
+#         if task.get_task().get_name() == str(guild.id):
+#             return
+
+#     # Create new task and add it to the list
+#     t = tasks.loop(name=str(guild.id), hours=1)(checkImgUpdate)
+#     runningTasks.append(t)
+#     t.start(guild)
+
+
+# def restartTask(guild: discord.Guild) -> bool:
+#     for task in runningTasks:
+#         if task.get_task().get_name() == str(guild.id):
+#             task.restart(guild)
+#             return True
+#     return False
 
 
 @client.tree.command(
@@ -91,7 +107,8 @@ async def setChannel(interaction: discord.Interaction):
     await interaction.response.send_message(
         "The bot will post updates to this channel", silent=True
     )
-    startTask(interaction.guild)
+    updateGuilds.restart()
+    # startTask(interaction.guild)
 
 
 @client.tree.command(
@@ -100,15 +117,20 @@ async def setChannel(interaction: discord.Interaction):
 )
 async def forceCheck(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
-    if restartTask(interaction.guild) or (
-        str(interaction.guild_id) in guildInfo.keys()
-        and guildInfo[str(interaction.guild_id)]["channel"]
-    ):
-        await interaction.response.send_message(
-            "Checking for an update. Nothing will be posted if the last post is up to date",
-            ephemeral=True,
-        )
-        await checkImgUpdate(interaction.guild)
+    if str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]:
+        # await checkImgUpdate(interaction.guild)
+        updatedGuilds = await updateGuilds()
+        if str(interaction.guild_id) in updatedGuilds:
+            await interaction.response.send_message(
+                "New images were found and have been posted",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "No new images found",
+                ephemeral=True,
+            )
+        updateGuilds.restart()
     else:
         await interaction.response.send_message(
             "Please set a channel to post updates in first", ephemeral=True
@@ -121,20 +143,15 @@ async def forceCheck(interaction: discord.Interaction):
 )
 async def forcePost(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
-    if (
-        str(interaction.guild_id) in guildInfo.keys()
-        and guildInfo[str(interaction.guild_id)]["channel"]
-    ):
-        if await checkImgUpdate(interaction.guild, True):
-            await interaction.response.send_message(
-                "Posting the latest image...", ephemeral=True
-            )
-        else:
-            await interaction.response.send_message(
-                "Unable to find an image, or the latest image is in the ignore list",
-                ephemeral=True,
-            )
-        restartTask(interaction.guild)
+    if str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]:
+        await interaction.response.send_message(
+            "Posting the latest image...", ephemeral=True
+        )
+        updatedGuilds = await updateGuilds()
+        if str(interaction.guild_id) not in updatedGuilds:
+            imgLink = checkImgUpdate()
+            await postImage(imgLink, interaction.guild)
+        updateGuilds.restart()
     else:
         await interaction.response.send_message(
             "Please set a channel to post updates in first", ephemeral=True
@@ -145,29 +162,25 @@ async def forcePost(interaction: discord.Interaction):
 async def on_ready():
     print("We have logged in as {0.user}".format(client))
     await client.tree.sync()
-    guildInfo = loadGuildInfo()
-    for guild in guildInfo:
-        g = client.get_guild(int(guild))
-        if g:
-            startTask(g)
+    updateGuilds.start()
 
 
 @client.event
 async def on_guild_join(guild: discord.Guild):
     c = guild.system_channel
-    embed = discord.Embed()
-    guildInfo = loadGuildInfo()
-    if str(guild.id) in guildInfo and guildInfo[str(guild.id)]["channel"]:
-        embed.add_field(
-            name="Thanks for adding the Big Watermelon bot to your server",
-            value=f"This bot has been previously setup on this server. Updates will be posted to <#{guildInfo[str(guild.id)]['channel']}>",
-        )
-    else:
-        embed.add_field(
-            name="Thanks for adding the Big Watermelon bot to your server",
-            value="To start using the bot, please use /setchannel to set a channel to post updates",
-        )
+    embed = discord.Embed(color=discord.Colour.blue)
+    embed.add_field(
+        name="Thanks for adding the Big Watermelon bot to your server",
+        value="To start using the bot, please use /setchannel to set a channel to post updates",
+    )
     await c.send(embed=embed)
+
+
+@client.event
+async def on_guild_remove(guild: discord.Guild):
+    guildInfo = loadGuildInfo()
+    guildInfo.pop(str(guild.id), None)
+    saveGuildInfo(guildInfo)
 
 
 try:
