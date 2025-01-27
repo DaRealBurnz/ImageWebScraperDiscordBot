@@ -14,8 +14,6 @@ client = commands.Bot(command_prefix="!", intents=discord.Intents.default())
 with open("config.yml", "r") as f:
     config = yaml.safe_load(f)
 ignoreLst = config["ignoreList"]
-html = requests.get(config["url"])
-soup = BeautifulSoup(html.text, "html.parser")
 load_dotenv()
 
 
