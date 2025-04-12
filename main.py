@@ -70,29 +70,6 @@ async def updateGuilds() -> list:
     return updatedGuilds
 
 
-# runningTasks = []
-
-
-# def startTask(guild: discord.Guild):
-#     # If task is already running, don't do anything
-#     for task in runningTasks:
-#         if task.get_task().get_name() == str(guild.id):
-#             return
-
-#     # Create new task and add it to the list
-#     t = tasks.loop(name=str(guild.id), hours=1)(checkImgUpdate)
-#     runningTasks.append(t)
-#     t.start(guild)
-
-
-# def restartTask(guild: discord.Guild) -> bool:
-#     for task in runningTasks:
-#         if task.get_task().get_name() == str(guild.id):
-#             task.restart(guild)
-#             return True
-#     return False
-
-
 @client.tree.command(
     name="setchannel", description="Set this channel to receive updates from the bot"
 )
@@ -106,7 +83,6 @@ async def setChannel(interaction: discord.Interaction):
         "The bot will post updates to this channel", silent=True
     )
     updateGuilds.restart()
-    # startTask(interaction.guild)
 
 
 @client.tree.command(
@@ -116,7 +92,6 @@ async def setChannel(interaction: discord.Interaction):
 async def forceCheck(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
     if str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]:
-        # await checkImgUpdate(interaction.guild)
         updatedGuilds = await updateGuilds()
         if str(interaction.guild_id) in updatedGuilds:
             await interaction.response.send_message(
