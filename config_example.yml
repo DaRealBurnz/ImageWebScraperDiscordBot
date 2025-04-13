@@ -11,3 +11,13 @@ url:
 
 # CSS selector to get images from
 selector: 
+
+# Uncomment 'freq' below to customise the frequency that the website should be checked for updates
+# If left commented, it will default to an hour
+# Follow the format noted at https://discordpy.readthedocs.io/en/stable/ext/tasks/index.html#discord.ext.tasks.loop
+#freq:
+#  seconds:
+#  minutes:
+#  hours:
+#  time:
+#    - 

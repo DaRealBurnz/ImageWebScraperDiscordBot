@@ -14,6 +14,7 @@ client = commands.Bot(command_prefix="!", intents=discord.Intents.default())
 with open("config.yml", "r") as f:
     config = yaml.safe_load(f)
 ignoreLst = config["ignoreList"]
+freq = config.get("freq", {"hours": 1})
 load_dotenv()
 
 
@@ -55,7 +56,7 @@ def checkImgUpdate() -> str:
 
 
 # Post images in guilds that don't have the new image
-@tasks.loop(hours=1)
+@tasks.loop(**freq)
 async def updateGuilds() -> list:
     guildInfo = loadGuildInfo()
     updatedGuilds = []
