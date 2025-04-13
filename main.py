@@ -18,6 +18,7 @@ freq = config.get("freq", {"hours": 1})
 load_dotenv()
 
 
+# --GUILD INFO FUNCTIONS--
 # Load data from guild_info file. If it doesn't exist consider it empty
 def loadGuildInfo() -> dict:
     try:
@@ -32,6 +33,8 @@ def saveGuildInfo(guildInfo: dict):
     with open("guild_info.json", "w") as f:
         json.dump(guildInfo, f)
 
+
+# --IMAGE UPDATE FUNCTIONS--
 # Post image to given guild
 async def postImage(imgLink: str, guild: discord.Guild):
     guildInfo = loadGuildInfo()
@@ -56,6 +59,7 @@ def checkImgUpdate() -> str:
 
 
 # Post images in guilds that don't have the new image
+# This will loop according to the frequency defined in config.yml (default 1hr)
 @tasks.loop(**freq)
 async def updateGuilds() -> list:
     guildInfo = loadGuildInfo()
@@ -71,6 +75,7 @@ async def updateGuilds() -> list:
     return updatedGuilds
 
 
+# --COMMANDS--
 @client.tree.command(
     name="setchannel", description="Set this channel to receive updates from the bot"
 )
@@ -132,6 +137,8 @@ async def forcePost(interaction: discord.Interaction):
         )
 
 
+# --EVENTS--
+# Sync commands and start the task when the bot is ready
 @client.event
 async def on_ready():
     print("We have logged in as {0.user}".format(client))
@@ -139,6 +146,7 @@ async def on_ready():
     updateGuilds.start()
 
 
+# Guild onboarding
 @client.event
 async def on_guild_join(guild: discord.Guild):
     c = guild.system_channel
@@ -150,6 +158,7 @@ async def on_guild_join(guild: discord.Guild):
     await c.send(embed=embed)
 
 
+# Guild offboarding
 @client.event
 async def on_guild_remove(guild: discord.Guild):
     guildInfo = loadGuildInfo()
@@ -157,6 +166,7 @@ async def on_guild_remove(guild: discord.Guild):
     saveGuildInfo(guildInfo)
 
 
+# Start the bot
 try:
     client.run(os.getenv("BOT_TOKEN"))
 except discord.HTTPException as e:
