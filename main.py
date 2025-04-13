@@ -14,11 +14,11 @@ client = commands.Bot(command_prefix="!", intents=discord.Intents.default())
 with open("config.yml", "r") as f:
     config = yaml.safe_load(f)
 ignoreLst = config["ignoreList"]
-html = requests.get(config["url"])
-soup = BeautifulSoup(html.text, "html.parser")
+freq = config.get("freq", {"hours": 1})
 load_dotenv()
 
 
+# --GUILD INFO FUNCTIONS--
 # Load data from guild_info file. If it doesn't exist consider it empty
 def loadGuildInfo() -> dict:
     try:
@@ -33,6 +33,8 @@ def saveGuildInfo(guildInfo: dict):
     with open("guild_info.json", "w") as f:
         json.dump(guildInfo, f)
 
+
+# --IMAGE UPDATE FUNCTIONS--
 # Post image to given guild
 async def postImage(imgLink: str, guild: discord.Guild):
     guildInfo = loadGuildInfo()
@@ -57,7 +59,8 @@ def checkImgUpdate() -> str:
 
 
 # Post images in guilds that don't have the new image
-@tasks.loop(hours=1)
+# This will loop according to the frequency defined in config.yml (default 1hr)
+@tasks.loop(**freq)
 async def updateGuilds() -> list:
     guildInfo = loadGuildInfo()
     updatedGuilds = []
@@ -72,29 +75,7 @@ async def updateGuilds() -> list:
     return updatedGuilds
 
 
-# runningTasks = []
-
-
-# def startTask(guild: discord.Guild):
-#     # If task is already running, don't do anything
-#     for task in runningTasks:
-#         if task.get_task().get_name() == str(guild.id):
-#             return
-
-#     # Create new task and add it to the list
-#     t = tasks.loop(name=str(guild.id), hours=1)(checkImgUpdate)
-#     runningTasks.append(t)
-#     t.start(guild)
-
-
-# def restartTask(guild: discord.Guild) -> bool:
-#     for task in runningTasks:
-#         if task.get_task().get_name() == str(guild.id):
-#             task.restart(guild)
-#             return True
-#     return False
-
-
+# --COMMANDS--
 @client.tree.command(
     name="setchannel", description="Set this channel to receive updates from the bot"
 )
@@ -108,7 +89,6 @@ async def setChannel(interaction: discord.Interaction):
         "The bot will post updates to this channel", silent=True
     )
     updateGuilds.restart()
-    # startTask(interaction.guild)
 
 
 @client.tree.command(
@@ -118,7 +98,6 @@ async def setChannel(interaction: discord.Interaction):
 async def forceCheck(interaction: discord.Interaction):
     guildInfo = loadGuildInfo()
     if str(interaction.guild_id) in guildInfo.keys() and guildInfo[str(interaction.guild_id)]["channel"]:
-        # await checkImgUpdate(interaction.guild)
         updatedGuilds = await updateGuilds()
         if str(interaction.guild_id) in updatedGuilds:
             await interaction.response.send_message(
@@ -158,6 +137,8 @@ async def forcePost(interaction: discord.Interaction):
         )
 
 
+# --EVENTS--
+# Sync commands and start the task when the bot is ready
 @client.event
 async def on_ready():
     print("We have logged in as {0.user}".format(client))
@@ -165,6 +146,7 @@ async def on_ready():
     updateGuilds.start()
 
 
+# Guild onboarding
 @client.event
 async def on_guild_join(guild: discord.Guild):
     c = guild.system_channel
@@ -176,6 +158,7 @@ async def on_guild_join(guild: discord.Guild):
     await c.send(embed=embed)
 
 
+# Guild offboarding
 @client.event
 async def on_guild_remove(guild: discord.Guild):
     guildInfo = loadGuildInfo()
@@ -183,6 +166,7 @@ async def on_guild_remove(guild: discord.Guild):
     saveGuildInfo(guildInfo)
 
 
+# Start the bot
 try:
     client.run(os.getenv("BOT_TOKEN"))
 except discord.HTTPException as e:
